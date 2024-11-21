@@ -1,39 +1,65 @@
 from aws_cdk import (
     aws_s3 as s3,
-    aws_iam as iam,
+    aws_ecr as ecr,
+    aws_ec2 as ec2,
     Stack,
 )
 from constructs import Construct
 from cdk.helpers import (
-    lambda_ as lh,
-    iam,
-    s3,
+    s3 as s3h,
+    ecr as ecrh,
+    vpc as vpch,
+    ec2 as ec2h,
 )
-from cdk import utils
 
 
-class CdkBaseStack(Stack):
+class StorageStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        bucket = s3.create_s3_bucket(self, "bucket")
+        self.bucket: s3.Bucket = s3h.create_s3_bucket(self)
+        self.repo: ecr.Repository = ecrh.create_ecr_repository(self)
 
-        # main Lambda function
-        layer = lh.create_lambda_layer(
-            construct=self,
-            name="sample-layer",
-            asset_path="./lambda/layers/sample_layer",
-            description=f"layer for {utils.name('cdk-base-stack')}",
+
+class NetworkStack(Stack):
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        self.vpc: ec2.Vpc = vpch.create_vpc(scope=self)
+        self.private_subnet: ec2.Subnet = self.vpc.select_subnets(
+            subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
+        ).subnets[0]
+
+
+class TrainingStack(Stack):
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        bucket: s3.Bucket,
+        repo: ecr.Repository,
+        vpc: ec2.Vpc,
+        private_subnet: ec2.Subnet,
+        **kwargs,
+    ) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        instance = ec2h.create_instance(
+            scope=self,
+            vpc=vpc,
+            private_subnet=private_subnet,
         )
 
-        main_function = lh.create_lambda_function(
-            construct=self,
-            name="main-function",
-            asset_path="./lambda/functions/sample_function",
-            layer=layer,
-            env={"CDK_APP_STAGE": utils.app_stage()},
-            description=f"main function for {utils.name('cdk-base-stack')}",
-        )
+        bucket.grant_read_write(instance)
 
-        main_function.add_to_role_policy(iam.policy_statement_for_s3_getobject(bucket))
 
+class ServiceStack(Stack):
+    def __init__(
+        self, scope: Construct, id: str, repo: ecr.Repository, **kwargs
+    ) -> None:
+        super().__init__(scope, id, **kwargs)

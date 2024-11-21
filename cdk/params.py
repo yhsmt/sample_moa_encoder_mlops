@@ -3,6 +3,7 @@ import os
 from aws_cdk import (
     aws_lambda as lmd,
     aws_logs as logs,
+    aws_ec2 as ec2,
     Duration,
 )
 
@@ -10,6 +11,7 @@ from cdk import utils
 
 
 class Common:
+    APP_NAME = "sample-moa-encoder-mlops"
     APP_STAGE = os.getenv("CDK_APP_STAGE")
     APP_STAGE_PROD = "prod"
     APP_STAGE_STG = "stg"
@@ -37,30 +39,24 @@ class VPC:
 
     if Common.APP_STAGE_IS_PROD:
         # prod
-        VPC_ID = "vpc-0a35f89ca2decc786"
-        VPC_CIDR_BLOCK = "10.58.218.0/23"
-        SUBNET_ID = "subnet-03f4fd1e5783edd36"
-        AVAILABILITY_ZONE = "ap-northeast-1a"
-        SECURITY_GROUP_INBOUND_443_ALLOW = [
-            ("100.76.229.0/25", "OpenPaaS"),
-            ("100.76.229.128/25", "OpenPaaS"),
-            ("100.76.230.0/25", "OpenPaaS"),
-        ]
+        MAX_AZ = 2
+        SUBNET_CIDR_MASK = 24  # ip x 256
     else:
         # nonprod
-        VPC_ID = "vpc-01de5e42aeb17a496"
-        VPC_CIDR_BLOCK = "10.58.221.0/24"
-        SUBNET_ID = "subnet-0604c623799bc44e6"
-        AVAILABILITY_ZONE = "ap-northeast-1a"
-        SECURITY_GROUP_INBOUND_443_ALLOW = [
-            ("10.58.0.0/16", "ADJ VPN"),
-            ("100.76.229.0/25", "OpenPaaS"),
-            ("100.76.229.128/25", "OpenPaaS"),
-            ("100.76.230.0/25", "OpenPaaS"),
-            ("10.96.0.0/16", "preprod"),
-            ("10.96.89.4/32", "preprod"),
-            ("10.95.79.21/32", "preprod"),
-        ]
+        MAX_AZ = 2
+        SUBNET_CIDR_MASK = 27  # ip x 32
+
+
+class EC2:
+    MACHINE_IMAGE = ec2.MachineImage.latest_amazon_linux2()
+    if Common.APP_STAGE_IS_PROD:
+        INSTANCE_TYPE = ec2.InstanceType("t3.micro")
+    else:
+        INSTANCE_TYPE = ec2.InstanceType("t3.micro")
+
+
+class AppRunner:
+    SERVICE_PORT = 80
 
 
 class S3:

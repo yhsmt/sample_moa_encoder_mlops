@@ -6,3 +6,4 @@ redshift_account.json
 .idea
 .venv
 Pipfile.lock
+.vscode/
